@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro y Geolocalización</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f7fc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 600px;
+      padding: 30px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+    label {
+      font-size: 1rem;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0 20px 0;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: #007bff;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #status {
+      font-weight: bold;
+      margin-top: 20px;
+      color: #28a745;
+    }
+    #show-data-btn {
+      background-color: #28a745;
+      border: none;
+      padding: 10px 20px;
+      color: white;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+      transition: background-color 0.3s ease;
+    }
+    #show-data-btn:hover {
+      background-color: #218838;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .data-container {
+      margin-top: 20px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Registro y Geolocalización</h1>
+    <form id="register-form">
+      <label for="nombre">Nombre:</label>
+      <input type="text" id="nombre" name="nombre" required placeholder="Escribe tu nombre">
+      <button type="submit">Registrar</button>
+    </form>
+
+    <p id="status"></p>
+    <button id="show-data-btn">Mostrar Localizaciones</button>
+
+    <div id="data-container" class="data-container"></div>
+  </div>
+
+  <script>
+    const API_KEY = "$2a$10$vmuINPzNrikXxhFN95qbV.nAsJXm4U5HydAok.cIUNY52Om9x3lBC"; // Master Key
+    const BIN_ID = "6748e1d7acd3cb34a8b0b32f"; // ID del bin
+    const BASE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    const form = document.getElementById('register-form');
+    const statusElement = document.getElementById('status');
+    const showDataBtn = document.getElementById('show-data-btn');
+    const dataContainer = document.getElementById('data-container');
+
+    let ip, pais, region, ciudad, ubicacion;
+
+    // Obtener datos de ubicación por IP
+    function getIPInfo(callback) {
+      const token = 'f01c886651ecad'; // Token de IPInfo
+      const url = `https://ipinfo.io?token=${token}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          ip = data.ip;
+          pais = data.country;
+          region = data.region;
+          ciudad = data.city;
+          ubicacion = `Aproximada: ${data.city}, ${data.region}, ${data.country}`;
+          callback();
+        })
+        .catch(error => {
+          console.error("Error al obtener datos de IPInfo:", error);
+        });
+    }
+
+    // Guardar datos en JSONBin
+    function saveData(nombre) {
+      fetch(BASE_URL, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Master-Key": API_KEY
+        },
+        body: JSON.stringify({
+          nombre: nombre,
+          ip: ip,
+          pais: pais,
+          region: region,
+          ciudad: ciudad,
+          ubicacion: ubicacion,
+          fecha: new Date().toISOString()
+        })
+      })
+      .then(response => response.json())
+      .then(() => {
+        statusElement.textContent = "Registro exitoso.";
+        showDataBtn.style.display = 'block';
+      })
+      .catch(error => {
+        console.error("Error al guardar datos:", error);
+      });
+    }
+
+    // Mostrar datos de JSONBin
+    function showData() {
+      fetch(BASE_URL, {
+        headers: {
+          "X-Master-Key": API_KEY
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.record || data.record.length === 0) {
+          dataContainer.innerHTML = '<p>No hay registros disponibles.</p>';
+          return;
+        }
+        let html = "<table><tr><th>Nombre</th><th>IP</th><th>País</th><th>Región</th><th>Ciudad</th><th>Ubicación</th><th>Fecha</th></tr>";
+        data.record.forEach((registro) => {
+          html += `<tr>
+            <td>${registro.nombre}</td>
+            <td>${registro.ip}</td>
+            <td>${registro.pais}</td>
+            <td>${registro.region}</td>
+            <td>${registro.ciudad}</td>
+            <td>${registro.ubicacion}</td>
+            <td>${new Date(registro.fecha).toLocaleString()}</td>
+          </tr>`;
+        });
+        html += "</table>";
+        dataContainer.innerHTML = html;
+      })
+      .catch(error => {
+        console.error("Error al obtener datos:", error);
+      });
+    }
+
+    // Manejar el formulario
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('nombre').value;
+      getIPInfo(() => {
+        saveData(nombre);
+      });
+    });
+
+    // Botón para mostrar datos
+    showDataBtn.addEventListener('click', showData);
+  </script>
+
+</body>
+</html>
